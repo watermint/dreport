@@ -1,0 +1,5 @@
+package: githbu.com/watermint/dreport
+import:
+- package: github.com/dropbox/dropbox-sdk-go-unofficial
+  subpackages:
+  - dropbox/...

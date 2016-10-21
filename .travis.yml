@@ -1,0 +1,21 @@
+language: go
+go:
+ - 1.7
+ - tip
+
+before_install:
+ - go get golang.org/x/tools/cmd/cover
+ - go get github.com/modocache/gover
+ - go get github.com/mattn/goveralls
+ - go get github.com/Masterminds/glide
+
+install:
+ - glide install
+
+script:
+ - go list -f '{{if len .TestGoFiles}}"go test -coverprofile={{.Dir}}/.coverprofile {{.ImportPath}}"{{end}}' $(glide novendor) | xargs -L 1 sh -c
+ - gover
+
+after_success:
+ - goveralls -coverprofile=gover.coverprofile -service=travis-ci -repotoken $COVERALLS_TOKEN
+
