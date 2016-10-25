@@ -1,5 +1,11 @@
-package: githbu.com/watermint/dreport
+package: github.com/watermint/dreport
 import:
 - package: github.com/dropbox/dropbox-sdk-go-unofficial
   subpackages:
   - dropbox/...
+- package: golang.org/x/oauth2
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: github.com/satori/go.uuid
+- package: github.com/cihub/seelog
