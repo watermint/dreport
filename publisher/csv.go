@@ -10,15 +10,18 @@ import (
 type CsvPublisher struct {
 	OutputFile string
 
-	outFile *os.File
-	outCsv  *csv.Writer
+	outFile    *os.File
+	outCsv     *csv.Writer
+	debugCsv   *csv.Writer
 }
 
 func (c *CsvPublisher) Headers(headers []string) error {
+	c.debugCsv.Write(headers)
 	return c.outCsv.Write(headers)
 }
 
 func (c *CsvPublisher) Row(data []string) error {
+	c.debugCsv.Write(data)
 	return c.outCsv.Write(data)
 }
 
@@ -30,6 +33,7 @@ func (c *CsvPublisher) Open() error {
 	}
 	c.outFile = out
 	c.outCsv = csv.NewWriter(out)
+	c.debugCsv = csv.NewWriter(os.Stdout)
 
 	return nil
 }

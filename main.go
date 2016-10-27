@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"github.com/watermint/dreport/report/sharing"
 )
 
 var (
@@ -201,6 +202,7 @@ func main() {
 		&member.ReportMemberProfile{},
 		&member.ReportQuotaUsage{},
 		&member.ReportMemberSessions{},
+		&sharing.ReportSharedFolderMembers{},
 	}
 	cmd := Commands{
 		SupportedReports: reports,

@@ -55,10 +55,10 @@ func (t *ReportQuotaUsage) Report(context *integration.ReportContext) error {
 
 func (t *ReportQuotaUsage) createHeader() []string {
 	return []string{
-		"Account Id",
-		"Team Member Id",
-		"Email",
-		"Usage (bytes)",
+		"account-id",
+		"team-member-id",
+		"email",
+		"usage",
 	}
 }
 

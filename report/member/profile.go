@@ -40,14 +40,14 @@ func (t *ReportMemberProfile) Report(context *integration.ReportContext) error {
 
 func (t *ReportMemberProfile) createHeader() []string {
 	return []string{
-		"Account Id",
-		"Team Member Id",
-		"Email",
-		"Email verified?",
-		"External Id",
-		"Membership Type",
-		"Role",
-		"Status",
+		"account-id",
+		"team-member-id",
+		"email",
+		"email-verified",
+		"external-id",
+		"membership-type",
+		"role",
+		"status",
 	}
 }
 
