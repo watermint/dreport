@@ -1,5 +1,5 @@
 hash: c9287a82ebc0394c00d66dfff2b1ee9345c4968d567d090b9ff3abf2e529b659
-updated: 2016-10-24T17:47:51.305432725+09:00
+updated: 2016-10-27T14:03:03.120762198+09:00
 imports:
 - name: github.com/cihub/seelog
   version: d2c6e5aa9fbfdd1c624e140287063c7730654115

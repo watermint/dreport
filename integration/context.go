@@ -1,19 +1,26 @@
 package integration
 
-type ExecutionContext struct {
-	AppName string
+import "github.com/watermint/dreport/publisher"
 
-	// App keys and Tokens
-	TeamInfoAppKey     string
-	TeamInfoAppSecret  string
-	TeamInfoToken      string
-	TeamFileAppKey     string
-	TeamFileAppSecret  string
-	TeamFileToken      string
-	TeamAuditAppKey    string
-	TeamAuditAppSecret string
-	TeamAuditToken     string
+type ReportContext struct {
+	// Auth Tokens
+	TeamInfoToken  string
+	TeamFileToken  string
+	TeamAuditToken string
 
 	// Output
-	OutputFile string
+	ReportOutput publisher.Publisher
+}
+
+type ApplicationContext struct {
+	AppName string
+
+	TeamInfoAppKey    string
+	TeamInfoAppSecret string
+
+	TeamFileAppKey    string
+	TeamFileAppSecret string
+
+	TeamAuditAppKey    string
+	TeamAuditAppSecret string
 }

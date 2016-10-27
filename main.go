@@ -8,7 +8,9 @@ import (
 	"github.com/dropbox/dropbox-sdk-go-unofficial"
 	"github.com/watermint/dreport/auth"
 	"github.com/watermint/dreport/integration"
+	"github.com/watermint/dreport/publisher"
 	"github.com/watermint/dreport/report"
+	"github.com/watermint/dreport/report/member"
 	"log"
 	"os"
 	"strings"
@@ -40,7 +42,7 @@ const (
 	`
 )
 
-func Authorise(ctx *integration.ExecutionContext, report report.Report) error {
+func Authorise(ac *integration.ApplicationContext, rc *integration.ReportContext, report report.Report) error {
 	permissions := report.RequiredPermissions()
 	seelog.Infof("Report requires following permission(s): %s\n", strings.Join(permissions, ","))
 	seelog.Flush()
@@ -50,44 +52,44 @@ func Authorise(ctx *integration.ExecutionContext, report report.Report) error {
 		case auth.PERMISSION_INFO:
 			a := auth.DropboxAuthenticator{
 				Permission: "Team Information",
-				AppName:    ctx.AppName,
-				AppKey:     ctx.TeamInfoAppKey,
-				AppSecret:  ctx.TeamInfoAppSecret,
+				AppName:    ac.AppName,
+				AppKey:     ac.TeamInfoAppKey,
+				AppSecret:  ac.TeamInfoAppSecret,
 			}
 			t, err := a.Authorise()
 			if err != nil {
 				seelog.Errorf("Unable to acquire token for '%s'", a.Permission)
 				return err
 			}
-			ctx.TeamInfoToken = t
+			rc.TeamInfoToken = t
 
 		case auth.PERMISSION_FILE:
 			a := auth.DropboxAuthenticator{
 				Permission: "Team file access",
-				AppName:    ctx.AppName,
-				AppKey:     ctx.TeamFileAppKey,
-				AppSecret:  ctx.TeamFileAppSecret,
+				AppName:    ac.AppName,
+				AppKey:     ac.TeamFileAppKey,
+				AppSecret:  ac.TeamFileAppSecret,
 			}
 			t, err := a.Authorise()
 			if err != nil {
 				seelog.Errorf("Unable to acquire token for '%s'", a.Permission)
 				return err
 			}
-			ctx.TeamFileToken = t
+			rc.TeamFileToken = t
 
 		case auth.PERMISSION_AUDIT:
 			a := auth.DropboxAuthenticator{
 				Permission: "Team auditing",
-				AppName:    ctx.AppName,
-				AppKey:     ctx.TeamAuditAppKey,
-				AppSecret:  ctx.TeamAuditAppSecret,
+				AppName:    ac.AppName,
+				AppKey:     ac.TeamAuditAppKey,
+				AppSecret:  ac.TeamAuditAppSecret,
 			}
 			t, err := a.Authorise()
 			if err != nil {
 				seelog.Errorf("Unable to acquire token for '%s'", a.Permission)
 				return err
 			}
-			ctx.TeamAuditToken = t
+			rc.TeamAuditToken = t
 
 		}
 
@@ -96,7 +98,7 @@ func Authorise(ctx *integration.ExecutionContext, report report.Report) error {
 	return nil
 }
 
-func Revoke(ctx *integration.ExecutionContext) {
+func Revoke(ctx *integration.ReportContext) {
 	if ctx.TeamInfoToken != "" {
 		seelog.Info("Clean up token: Team Information")
 		client := dropbox.Client(ctx.TeamInfoToken, dropbox.Options{})
@@ -196,9 +198,9 @@ func main() {
 	seelog.Info("dreport version: " + AppVersion)
 
 	reports := []report.Report{
-		&report.ReportMemberProfile{},
-		&report.ReportQuotaUsage{},
-		&report.ReportMemberSessions{},
+		&member.ReportMemberProfile{},
+		&member.ReportQuotaUsage{},
+		&member.ReportMemberSessions{},
 	}
 	cmd := Commands{
 		SupportedReports: reports,
@@ -208,7 +210,16 @@ func main() {
 		return
 	}
 
-	ctx := &integration.ExecutionContext{
+	pub := &publisher.CsvPublisher{
+		OutputFile: cmd.ReportFile,
+	}
+	if err := pub.Open(); err != nil {
+		seelog.Error("Could not publish report", err)
+		return
+	}
+	defer pub.Close()
+
+	ac := &integration.ApplicationContext{
 		AppName:            "dreport",
 		TeamInfoAppKey:     DropboxBusinessInfoAppKey,
 		TeamInfoAppSecret:  DropboxBusinessInfoAppSecret,
@@ -216,17 +227,19 @@ func main() {
 		TeamFileAppSecret:  DropboxBusinessFileAppSecret,
 		TeamAuditAppKey:    DropboxBusinessAuditAppKey,
 		TeamAuditAppSecret: DropboxBusinessAuditAppSecret,
-		OutputFile:         cmd.ReportFile,
+	}
+	rc := &integration.ReportContext{
+		ReportOutput: pub,
 	}
 
-	if err := Authorise(ctx, cmd.Report); err != nil {
+	if err := Authorise(ac, rc, cmd.Report); err != nil {
 		seelog.Error("Unable to acquire enough authorisations.")
 		return
 	}
-	defer Revoke(ctx)
+	defer Revoke(rc)
 
 	seelog.Info("Start report: ", cmd.Report.ReportName())
-	if err := cmd.Report.Report(ctx); err != nil {
+	if err := cmd.Report.Report(rc); err != nil {
 		seelog.Error(err)
 	}
 }

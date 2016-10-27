@@ -1,13 +1,12 @@
-package report
+package member
 
 import (
-	"encoding/csv"
 	"github.com/cihub/seelog"
 	"github.com/dropbox/dropbox-sdk-go-unofficial"
 	"github.com/dropbox/dropbox-sdk-go-unofficial/team"
 	"github.com/watermint/dreport/auth"
+	"github.com/watermint/dreport/crawler"
 	"github.com/watermint/dreport/integration"
-	"os"
 	"strconv"
 )
 
@@ -29,53 +28,27 @@ func (t *ReportMemberSessions) RequiredPermissions() []string {
 	}
 }
 
-func (t *ReportMemberSessions) Report(context *integration.ExecutionContext) error {
-	infoClient := dropbox.Client(context.TeamInfoToken, dropbox.Options{})
-	out, err := os.Create(context.OutputFile)
-	if err != nil {
-		seelog.Errorf("Unable to create output file: '%s'", context.OutputFile)
-		return err
-	}
-	defer out.Close()
-	outCsv := csv.NewWriter(out)
-	defer outCsv.Flush()
-
-	if err := t.writeHeader(outCsv); err != nil {
-		seelog.Errorf("Unable to write header line", err)
-		return err
-	}
-
-	membersMap := make(map[string]*team.TeamMemberInfo)
-	seelog.Info("Loading members")
-	membersList, err := infoClient.MembersList(team.NewMembersListArg())
+func (t *ReportMemberSessions) Report(context *integration.ReportContext) error {
+	members, err := crawler.AllTeamMembers(context)
 	if err != nil {
 		seelog.Errorf("Unable to load member list", err)
 		return err
 	}
-	for {
-		for _, m := range membersList.Members {
-			membersMap[m.Profile.TeamMemberId] = m
-		}
-		if !membersList.HasMore {
-			break
-		}
-		seelog.Info("Loading more members..")
-		cont := team.NewMembersListContinueArg(membersList.Cursor)
-		membersList, err = infoClient.MembersListContinue(cont)
-		if err != nil {
-			seelog.Error("Unable to load member (continue)", err)
-			return err
-		}
+	membersMap := make(map[string]*team.TeamMemberInfo)
+	for _, m := range members {
+		membersMap[m.Profile.TeamMemberId] = m
 	}
 
-	auditClient := dropbox.Client(context.TeamFileToken, dropbox.Options{})
+	fileClient := dropbox.Client(context.TeamFileToken, dropbox.Options{})
+
+	context.ReportOutput.Headers(t.createHeader())
 
 	seelog.Info("Loading sessions")
 	query := team.NewListMembersDevicesArg()
 	query.IncludeDesktopClients = true
 	query.IncludeMobileClients = true
 	query.IncludeWebSessions = true
-	sessions, err := auditClient.DevicesListMembersDevices(query)
+	sessions, err := fileClient.DevicesListMembersDevices(query)
 	if err != nil {
 		seelog.Error("Unable to load members sessions", err)
 		return err
@@ -88,16 +61,15 @@ func (t *ReportMemberSessions) Report(context *integration.ExecutionContext) err
 				continue
 			}
 			for _, s := range d.DesktopClients {
-				t.writeDesktopSession(outCsv, member, s)
+				context.ReportOutput.Row(t.createDesktopSession(member, s))
 			}
 			for _, s := range d.MobileClients {
-				t.writeMobileSession(outCsv, member, s)
+				context.ReportOutput.Row(t.createMobileSession(member, s))
 			}
 			for _, s := range d.WebSessions {
-				t.writeWebSession(outCsv, member, s)
+				context.ReportOutput.Row(t.createWebSession(member, s))
 			}
 		}
-
 		if !sessions.HasMore {
 			seelog.Info("Finished")
 			return nil
@@ -110,15 +82,15 @@ func (t *ReportMemberSessions) Report(context *integration.ExecutionContext) err
 		query.IncludeMobileClients = true
 		query.IncludeWebSessions = true
 
-		sessions, err = auditClient.DevicesListMembersDevices(query)
+		sessions, err = fileClient.DevicesListMembersDevices(query)
 		if err != nil {
 			seelog.Error("Unable to load member (contiue)", err)
 		}
 	}
 }
 
-func (t *ReportMemberSessions) writeHeader(outCsv *csv.Writer) error {
-	header := []string{
+func (t *ReportMemberSessions) createHeader() []string {
+	return []string{
 		"Account Id",
 		"Team Member Id",
 		"Email",
@@ -140,12 +112,10 @@ func (t *ReportMemberSessions) writeHeader(outCsv *csv.Writer) error {
 		"Created",
 		"Updated",
 	}
-
-	return outCsv.Write(header)
 }
 
-func (t *ReportMemberSessions) writeDesktopSession(outCsv *csv.Writer, m *team.TeamMemberInfo, s *team.DesktopClientSession) error {
-	line := []string{
+func (t *ReportMemberSessions) createDesktopSession(m *team.TeamMemberInfo, s *team.DesktopClientSession) []string {
+	return []string{
 		m.Profile.AccountId,
 		m.Profile.TeamMemberId,
 		m.Profile.Email,
@@ -167,12 +137,10 @@ func (t *ReportMemberSessions) writeDesktopSession(outCsv *csv.Writer, m *team.T
 		s.Created.String(),
 		s.Updated.String(),
 	}
-
-	return outCsv.Write(line)
 }
 
-func (t *ReportMemberSessions) writeMobileSession(outCsv *csv.Writer, m *team.TeamMemberInfo, s *team.MobileClientSession) error {
-	line := []string{
+func (t *ReportMemberSessions) createMobileSession(m *team.TeamMemberInfo, s *team.MobileClientSession) []string {
+	return []string{
 		m.Profile.AccountId,
 		m.Profile.TeamMemberId,
 		m.Profile.Email,
@@ -194,12 +162,10 @@ func (t *ReportMemberSessions) writeMobileSession(outCsv *csv.Writer, m *team.Te
 		s.Created.String(),
 		s.Updated.String(),
 	}
-
-	return outCsv.Write(line)
 }
 
-func (t *ReportMemberSessions) writeWebSession(outCsv *csv.Writer, m *team.TeamMemberInfo, s *team.ActiveWebSession) error {
-	line := []string{
+func (t *ReportMemberSessions) createWebSession(m *team.TeamMemberInfo, s *team.ActiveWebSession) []string {
+	return []string{
 		m.Profile.AccountId,
 		m.Profile.TeamMemberId,
 		m.Profile.Email,
@@ -221,6 +187,4 @@ func (t *ReportMemberSessions) writeWebSession(outCsv *csv.Writer, m *team.TeamM
 		s.Created.String(),
 		s.Updated.String(),
 	}
-
-	return outCsv.Write(line)
 }
