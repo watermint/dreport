@@ -9,6 +9,7 @@ import (
 
 type CsvPublisher struct {
 	OutputFile string
+	OmitBom    bool
 
 	outFile    *os.File
 	outCsv     *csv.Writer
@@ -34,6 +35,11 @@ func (c *CsvPublisher) Open() error {
 	c.outFile = out
 	c.outCsv = csv.NewWriter(out)
 	c.debugCsv = csv.NewWriter(os.Stdout)
+
+	bomUtf8 := []byte{0xef, 0xbb, 0xbf}
+	if c.OmitBom {
+		c.outFile.Write(bomUtf8)
+	}
 
 	return nil
 }

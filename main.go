@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	AppVersion                    string = "dev"
-	DropboxBusinessInfoAppKey     string
-	DropboxBusinessInfoAppSecret  string
-	DropboxBusinessFileAppKey     string
-	DropboxBusinessFileAppSecret  string
-	DropboxBusinessAuditAppKey    string
+	AppVersion string = "dev"
+	DropboxBusinessInfoAppKey string
+	DropboxBusinessInfoAppSecret string
+	DropboxBusinessFileAppKey string
+	DropboxBusinessFileAppSecret string
+	DropboxBusinessAuditAppKey string
 	DropboxBusinessAuditAppSecret string
 )
 
@@ -115,20 +115,23 @@ func Revoke(ctx *integration.ReportContext) {
 type Commands struct {
 	SupportedReports []report.Report
 
-	Report     report.Report
-	ReportFile string
+	Report           report.Report
+	ReportFile       string
+	EnableBom        bool
 }
 
 var (
 	descReportName = "Report type name"
 	descReportFile = "Output file path"
-	descProxy      = "HTTP(S) proxy (hostname:port)"
+	descProxy = "HTTP(S) proxy (hostname:port)"
+	descEnableBom = "Add BOM(byte order mark) for output file"
 )
 
 func (o *Commands) Update() error {
 	reportName := flag.String("report", "", descReportName)
 	reportFile := flag.String("out", "", descReportFile)
 	proxy := flag.String("proxy", "", descProxy)
+	enableBom := flag.Bool("enable-bom", false, descEnableBom)
 
 	flag.Parse()
 
@@ -152,6 +155,7 @@ func (o *Commands) Update() error {
 
 	o.Report = r
 	o.ReportFile = *reportFile
+	o.EnableBom = *enableBom
 
 	return nil
 }
@@ -214,6 +218,7 @@ func main() {
 
 	pub := &publisher.CsvPublisher{
 		OutputFile: cmd.ReportFile,
+		OmitBom:    cmd.EnableBom,
 	}
 	if err := pub.Open(); err != nil {
 		seelog.Error("Could not publish report", err)
